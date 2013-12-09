@@ -27,7 +27,8 @@ setup(
     packages=['migopy'],
     install_requires=[
         'pymongo',
-        'fabric'
+        'fabric',
+        'mock'
     ]
 )
 

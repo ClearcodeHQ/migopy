@@ -46,7 +46,7 @@ and You are done. Migrations files should be putted in 'mongomigrations'
 directory which is at the same level as fabfile.py and names of migrations files
 should fulfill default pattern:
 
-    (?P<migr_NR>[0-9]+)_[a-z0-9_]+\.py
+    (?P<migr_nr>[0-9]+)_[a-z0-9_]+\.py
 
 Basic commands:
 
