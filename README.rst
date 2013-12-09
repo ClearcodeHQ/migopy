@@ -3,7 +3,9 @@ Migopy - Mongo Migrations for Python
 
 Migopy is a simple python library which simply allows You to
 setup mongo migrations manager for Your fabfile. After that
-You will be able to run command like this:
+You will be able to run command like this
+
+.. code-block:: python
 
     fab migrations
 
@@ -23,17 +25,17 @@ collection in mongo database.
 Quick start
 ----------------
 
-In Your fabfile:
+In Your fabfile
+
+.. code-block:: python
 
     import migopy
-
 
     class Migrations(migopy.MigrationsManager):
         MONGO_HOST
         MONGO_PORT
         MONGO_USER
         MONGO_PASSWORD
-
 
     migrations = Migrations.create_task()
 
@@ -46,7 +48,9 @@ fab staging migrations:help
 Customization
 ----------------
 
-Additional configuration:
+Additional configuration
+
+.. code-block:: python
 
     class Migrations(migopy.MigrationsManager):
         MIGRATIONS_DIRECTORY
@@ -54,14 +58,18 @@ Additional configuration:
         MONGO_DUMP_DIRECTORY
 
 
-You can override selected methods:
+You can override selected methods
+
+.. code-block:: python
 
     class Migrations(migopy.MigrationsManager):
         def do_dump(self):
             pass
 
 
-You can add, additional migrations subtask:
+You can add, additional migrations subtask
+
+.. code-block:: python
 
     import migopy
 
@@ -79,13 +87,15 @@ You can add, additional migrations subtask:
 
 Migration file
 ---------------
-def up():
-    pass
+.. code-block:: python
+
+    def up():
+        pass
 
 
-def down():
-    pass
+    def down():
+        pass
 
 
-if __name__ == '__main__':
-    up()
+    if __name__ == '__main__':
+        up()
