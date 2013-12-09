@@ -15,18 +15,3 @@
 #
 #You should have received a copy of the GNU Lesser General Public License
 #along with migopy.  If not, see <http://www.gnu.org/licenses/>.
-
-from distutils.core import setup
-
-setup(
-    name='migopy',
-    version='1.0 beta',
-    author='Pawel Galazka',
-    author_email='p.galazka@clearcode.cc',
-    description='Mongo migrations for Python',
-    packages=['migopy'],
-    install_requires=[
-        'pymongo'
-    ]
-)
-
