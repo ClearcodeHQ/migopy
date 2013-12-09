@@ -26,7 +26,8 @@ setup(
     description='Mongo migrations for Python',
     packages=['migopy'],
     install_requires=[
-        'pymongo'
+        'pymongo',
+        'fabric'
     ]
 )
 
