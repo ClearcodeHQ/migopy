@@ -28,6 +28,25 @@ class MigopyException(Exception):
     pass
 
 
+def task(method=None, default=False):
+    """Decoratores which marks which methods o migration manager
+    will be subtask of migration fabric task"""
+    if method:
+        if default:
+            method.migopy_task = 'default'
+        else:
+            method.migopy_task = True
+        return method
+    else:
+        def wrapper(method):
+            if default:
+                method.migopy_task = 'default'
+            else:
+                method.migopy_task = True
+            return method
+        return wrapper
+
+
 class MigrationsManager(object):
     MIGRATIONS_FILE_PATTERN = '(?P<migr_nr>[0-9]+)_[a-z0-9_]+\.py'
     MIGRATIONS_COLLECTION = 'migrations'
@@ -78,6 +97,7 @@ class MigrationsManager(object):
                       not self.collection.find_one({'name': filename})]
         return self.sorted(migr_files)
 
+    @task(default=True)
     def show_status(self):
         unreg_migr = self.unregistered()
         if unreg_migr:
@@ -88,6 +108,7 @@ class MigrationsManager(object):
         else:
             green('All migrations registered, nothing to execute')
 
+    @task
     def execute(self, spec_migr=None):
         unreg_migr = self.unregistered()
         if not unreg_migr:
@@ -107,6 +128,7 @@ class MigrationsManager(object):
             migr_mod = importlib.import_module(migr)
             migr_mod.up()
 
+    @task
     def ignore(self, spec_migr=None):
         unreg_migr = self.unregistered()
         if not unreg_migr:
@@ -124,6 +146,7 @@ class MigrationsManager(object):
         for migr in unreg_migr:
             self.collection.insert({'name': migr})
 
+    @task
     def rollback(self, spec_migr):
         if spec_migr not in self.unregistered():
             raise MigopyException(('Migration %s is not on unregistred ' +
@@ -137,14 +160,24 @@ class MigrationsManager(object):
     def create_task(cls):
         def task(subtask=None, spec_migr=None):
             migrations = cls()
-            if subtask == 'execute':
-                migrations.execute(spec_migr)
-            elif subtask == 'ignore':
-                migrations.ignore(spec_migr)
-            elif subtask == 'rollback':
-                migrations.rollback(spec_migr)
-            else:
-                migrations.show_status()
+            # migration manager attributes
+            for attr_name in dir(migrations):
+                attr = getattr(migrations, attr_name)
+                # check if is migopy task
+                if hasattr(attr, 'migopy_task'):
+                    # not default tasks searching
+                    if subtask and subtask == attr_name:
+                        if spec_migr:
+                            return getattr(migrations, subtask)(spec_migr)
+                        else:
+                            return getattr(migrations, subtask)()
+
+                    # default task searching
+                    if not subtask and getattr(attr, 'migopy_task')\
+                            == 'default':
+                        if spec_migr:
+                            return getattr(migrations, attr_name)(spec_migr)
+                        else:
+                            return getattr(migrations, attr_name)()
 
         return task
-

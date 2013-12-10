@@ -202,6 +202,10 @@ class MongoMigrationsBehavior(unittest.TestCase):
             ignore = mock.Mock()
             rollback = mock.Mock()
 
+        Migrations.show_status.migopy_task = 'default'
+        Migrations.execute.migopy_task = True
+        Migrations.ignore.migopy_task = True
+        Migrations.rollback.migopy_task = True
         task = Migrations.create_task()
         self.assertFalse(Migrations.show_status.called)
         self.assertFalse(Migrations.execute.called)
@@ -210,11 +214,11 @@ class MongoMigrationsBehavior(unittest.TestCase):
         task()
         Migrations.show_status.assert_called_with()
         task('execute')
-        Migrations.execute.assert_called_with(None)
+        Migrations.execute.assert_called_with()
         task('execute', '1_test.py')
         Migrations.execute.assert_called_with('1_test.py')
         task('ignore')
-        Migrations.ignore.assert_called_with(None)
+        Migrations.ignore.assert_called_with()
         task('ignore', '1_test.py')
         Migrations.ignore.assert_called_with('1_test.py')
         task('rollback', '1_test.py')
@@ -223,3 +227,29 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertEqual(Migrations.execute.call_count, 2)
         self.assertEqual(Migrations.ignore.call_count, 2)
         self.assertEqual(Migrations.rollback.call_count, 1)
+
+    def test_it_allow_to_create_custom_subtasks(self):
+        class Migrations(migopy.MigrationsManager):
+            task1_done = False
+            task2_done = False
+
+            @migopy.task
+            def show_status(self):
+                return 'show_status_result'
+
+            @migopy.task
+            def task1(self):
+                return 'task1_result'
+
+            @migopy.task
+            def task2(self):
+                return 'task2_result'
+
+            @migopy.task(default=True)
+            def task3(self):
+                return 'task3_result'
+
+        migr_task = Migrations.create_task()
+        self.assertEqual(migr_task('task1'), 'task1_result')
+        self.assertEqual(migr_task('task2'), 'task2_result')
+        self.assertEqual(migr_task(), 'task3_result')
