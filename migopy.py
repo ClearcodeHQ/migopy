@@ -16,6 +16,7 @@
 #You should have received a copy of the GNU Lesser General Public License
 #along with migopy.  If not, see <http://www.gnu.org/licenses/>.
 
+import importlib
 import os
 import pymongo
 import re
@@ -74,11 +75,76 @@ class MigrationsManager(object):
         migr_files = [fname for fname in os.listdir(self.MIGRATIONS_DIRECTORY)
                       if re.search('\.py$', fname)]
         migr_files = [filename for filename in migr_files if
-                      self.collection.find_one({'name': filename})]
+                      not self.collection.find_one({'name': filename})]
         return self.sorted(migr_files)
 
     def show_status(self):
-        green('All migrations registered, nothing to execute')
-        if os.path.exists('mongomigrations'):
+        unreg_migr = self.unregistered()
+        if unreg_migr:
             white('Unregistered migrations (fab migrations:execute to ' +
-                'execute them):')
+                  'execute them):')
+            for migr in unreg_migr:
+                red(migr)
+        else:
+            green('All migrations registered, nothing to execute')
+
+    def execute(self, spec_migr=None):
+        unreg_migr = self.unregistered()
+        if not unreg_migr:
+            self.show_status()
+            return None
+
+        if spec_migr and spec_migr not in unreg_migr:
+            raise MigopyException(('Migration %s is not on unregistred ' +
+                                  'migrations list. Can not be executed') %
+                                  spec_migr)
+
+        if spec_migr:
+            unreg_migr = [spec_migr]
+
+        for migr in unreg_migr:
+            migr = re.sub('\.py$', '', migr)
+            migr_mod = importlib.import_module(migr)
+            migr_mod.up()
+
+    def ignore(self, spec_migr=None):
+        unreg_migr = self.unregistered()
+        if not unreg_migr:
+            self.show_status()
+            return None
+
+        if spec_migr and spec_migr not in unreg_migr:
+            raise MigopyException(('Migration %s is not on unregistred ' +
+                                   'migrations list. Can not be executed') %
+                                  spec_migr)
+
+        if spec_migr:
+            unreg_migr = [spec_migr]
+
+        for migr in unreg_migr:
+            self.collection.insert({'name': migr})
+
+    def rollback(self, spec_migr):
+        if spec_migr not in self.unregistered():
+            raise MigopyException(('Migration %s is not on unregistred ' +
+                                   'migrations list. Can not be executed') %
+                                  spec_migr)
+        spec_migr = re.sub('\.py$', '', spec_migr)
+        migr_mod = importlib.import_module(spec_migr)
+        migr_mod.down()
+
+    @classmethod
+    def create_task(cls):
+        def task(subtask=None, spec_migr=None):
+            migrations = cls()
+            if subtask == 'execute':
+                migrations.execute(spec_migr)
+            elif subtask == 'ignore':
+                migrations.ignore(spec_migr)
+            elif subtask == 'rollback':
+                migrations.rollback(spec_migr)
+            else:
+                migrations.show_status()
+
+        return task
+
