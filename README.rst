@@ -66,21 +66,90 @@ Structure of migration file:
 
 .. code-block:: python
 
-    def up():
+    def up(db):
+        db.notes.insert({'content': 'test'})
         pass
 
-    def down():
-        pass
-
-    if __name__ == '__main__':
-        up()
+    def down(db):
+        db.notes.remove({'content': 'test'})
 
 
 where up() function is executed during fab migrations:execute command, and
-down() during fab migrations:rollback
+down() during fab migrations:rollback. Under db variable pymongo database
+object is given (pymongo.database.Database).
 
 
-Customization
+Handling different environments
+----------------
+
+It's common for Fabric to execute tasks on different environments, for
+example You probably would like to do that::
+
+    fab staging migrations
+    fab production migrations
+
+Example of fabfile.py:
+
+.. code-block:: python
+
+    import migopy
+    import settings
+
+    is_remote = False
+
+    def staging():
+        is_remote = True
+
+    def production():
+        is_remote = True
+
+    # Bind your settings with those in Migopy
+    class Migrations(migopy.MigrationsManager):
+        MONGO_HOST = settings.MONGO_HOST
+
+        @classmethod
+        def task_hook(cls, subtask, option):
+            if is_remote:
+                run(cls.fab_command(subtask, option))
+                raise migopy.StopTaskExecution()
+
+
+    migrations = Migrations.create_task()
+
+In the case above when we want to run migrations on remote machines, under
+the hood we have to run for example `fab staging migrations` command by
+fabric `run()` method. Migopy is not handling remote mongo connections from
+local fabric script so we need to raise `fab migrations` itself on remote
+machines.
+
+To do this we have to implement `task_hook()` class method. In the example
+task_hook simply recognize if we choose remote environment and if we does it
+runs itself by created string command, on remote machine and stop further
+execution (to stop raising migopy tasks on local).
+
+
+More on migration files
+----------------
+
+Migration files are quite flexible, if special mongo connection is needed or
+better integration with Mongokit You can import mongokit models or pymongo
+in migration file directly.
+
+Under the hood Migopy import each migration file as module and
+executes up/down functions giving pymongo database object as an argument.
+
+.. code-block:: python
+
+    import mymongokitmodel
+
+    def up(db):
+        note = mymongokitmodel.Notes()
+        note['name'] = 'test'
+        note.save()
+
+in the case above, mongokitmodel handle mongo connection by it's own.
+
+Further customization
 ----------------
 
 Additional configuration
@@ -101,7 +170,7 @@ You can override selected methods
             pass
 
 
-You can add, additional migrations subtask
+You can add, additional migrations subtasks
 
 .. code-block:: python
 
