@@ -16,12 +16,14 @@
 #You should have received a copy of the GNU Lesser General Public License
 #along with migopy.  If not, see <http://www.gnu.org/licenses/>.
 
+import datetime
 import importlib
 import logging
 import os
 import pymongo
 import re
 
+from fabric.api import local
 from fabric.colors import green, white, red
 
 
@@ -84,14 +86,19 @@ class MigrationsManager(object):
     MONGO_HOST = 'localhost'
     MONGO_PORT = 27017
     MONGO_DATABASE = None
+    MONGO_USER = None
+    MONGO_USER_PASS = None
+    MONGO_DUMP_DIRECTORY = 'mongodumps'
+    DO_MONGO_DUMP = False
     logger = ColorsLogger()
+    MongoClient = pymongo.MongoClient
 
     def __init__(self):
         self.db = None
         self.collection = None
         if self.MONGO_DATABASE:
-            self.mongo_client = pymongo.MongoClient(self.MONGO_HOST,
-                                                    self.MONGO_PORT)
+            self.mongo_client = MongoClient(self.MONGO_HOST,
+                                            self.MONGO_PORT)
             self.db = self.mongo_client[self.MONGO_DATABASE]
             self.collection = self.db[self.MIGRATIONS_COLLECTION]
 
@@ -189,6 +196,40 @@ class MigrationsManager(object):
         migr_mod = importlib.import_module(spec_migr)
         self.logger.normal('Rollback migration %s...' % spec_migr)
         migr_mod.down(self.db)
+
+    @task
+    def dbdump(self):
+        if not self.DO_MONGO_DUMP:
+            return None
+
+        if not self.MONGO_DATABASE:
+            raise MigopyException("Name of mongo database not given")
+
+        filename = re.sub('[:\.\s]', '_', str(datetime.datetime.now()))
+        path = '%s/%s' % (self.MONGO_DUMP_DIRECTORY, filename)
+        command = 'mongodump -d %s -o %s' % (self.MONGO_DATABASE, path)
+        if self.MONGO_USER and self.MONGO_USER_PASS:
+            command += '-u %s -p %s' % (self.MONGO_USER, self.MONGO_USER_PASS)
+
+        self.logger.normal('Doing mongo dump...')
+        local(command)
+
+    @staticmethod
+    def tasks(migr_mng):
+        """It returns all migopy tasks"""
+        for attr_name in dir(migr_mng):
+            attr = getattr(migr_mng, attr_name)
+            if hasattr(attr, 'migopy_task'):
+                yield attr
+
+    @task
+    def help(self):
+        for task in self.tasks(self):
+            if hasattr(task, '__doc__') and hasattr(task, '__name__') and \
+                task.__doc__ and task.__name__:
+                name = task.__name__
+                doc = task.__doc__.replace('\n', ' ')
+                self.logger.normal("%s - %s" % (name, doc.strip()))
 
     @classmethod
     def task_hook(cls, subtask, option):

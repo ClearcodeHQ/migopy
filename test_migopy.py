@@ -71,12 +71,16 @@ class MigrationsCollectionMock(object):
                 return row
 
 
+
+
 class MongoMigrationsBehavior(unittest.TestCase):
     def setUp(self):
-        class Migrations(migopy.MigrationsManager):
+        class MockedMigrationsManager(migopy.MigrationsManager):
             logger = mock.Mock()
+            MongoClient = mock.Mock()
 
-        self.migr_mng = Migrations()
+        self.MockedMigrationsManager = MockedMigrationsManager
+        self.migr_mng = self.MockedMigrationsManager()
 
     def test_it_sorts_migration_files(self):
         migrations = ['3_abc.py', '1_abc_cde.py', '2_abc.py']
@@ -201,7 +205,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
                 self.migr_mng.rollback('3_test.py')
 
     def test_it_create_task_for_fabfile(self):
-        class Migrations(migopy.MigrationsManager):
+        class Migrations(self.MockedMigrationsManager):
             show_status = mock.Mock()
             execute = mock.Mock()
             ignore = mock.Mock()
@@ -234,7 +238,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertEqual(Migrations.rollback.call_count, 1)
 
     def test_it_allow_to_create_custom_subtasks(self):
-        class Migrations(migopy.MigrationsManager):
+        class Migrations(self.MockedMigrationsManager):
             task1_done = False
             task2_done = False
 
@@ -262,7 +266,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
     def test_it_allow_to_implement_task_hook(self):
         is_remote = True
 
-        class Migrations(migopy.MigrationsManager):
+        class Migrations(self.MockedMigrationsManager):
             show_status = mock.Mock()
 
             @classmethod
@@ -276,8 +280,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertFalse(Migrations.show_status.called)
 
     def test_it_logs_errors_as_red_messages(self):
-        class Migrations(migopy.MigrationsManager):
-            logger = mock.Mock()
+        class Migrations(self.MockedMigrationsManager):
 
             @migopy.task(default=True)
             def show_status(self):
@@ -288,7 +291,48 @@ class MongoMigrationsBehavior(unittest.TestCase):
         Migrations.logger.red.assert_called_once_with("Test message")
 
     def test_it_shows_help_for_each_migopy_task(self):
-        pass
+        class Migrations(self.MockedMigrationsManager):
+            @migopy.task
+            def task1(self):
+                "Test doc 1"
+                pass
+
+            @migopy.task
+            def task2(self):
+                """
+                Test doc 2
+                """
+                pass
+
+        migrations = Migrations.create_task()
+        migrations('help')
+        self.assertTrue(Migrations.logger.normal.called, "Help not logger")
+        Migrations.logger.normal.assert_has_calls(
+            [mock.call('task1 - Test doc 1'), mock.call('task2 - Test doc 2')])
 
     def test_it_optionaly_do_mongodump_before_execution(self):
-        pass
+        with mock.patch('migopy.local') as local_mock:
+            # when DO_MONGO_DUMP = False
+            self.migr_mng.dbdump()
+            self.assertFalse(local_mock.called)
+
+            # when given only database name
+            self.migr_mng.DO_MONGO_DUMP = True
+            self.migr_mng.MONGO_DATABASE = 'd'
+            self.migr_mng.dbdump()
+            self.assertEqual(local_mock.call_count, 1, "local not called")
+            call_arg = local_mock.call_args[0][0]
+            self.assertTrue(call_arg.startswith('mongodump -d d -o'))
+            self.assertEqual(self.migr_mng.logger.normal.call_count, 1,
+                             "Mongo dump not logged")
+
+            # when given database name, user and password
+            self.migr_mng.MONGO_USER = 'u'
+            self.migr_mng.MONGO_USER_PASS = 'p'
+            self.migr_mng.dbdump()
+            self.assertEqual(local_mock.call_count, 2, "local not called")
+            call_arg = local_mock.call_args[0][0]
+            self.assertTrue(call_arg.startswith('mongodump -d d -o'))
+            self.assertTrue(call_arg.endswith('-u u -p p'))
+            self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+                             "Mongo dump not logged")
