@@ -186,10 +186,11 @@ class MigrationsManager(object):
         with cwd_in_syspath():
             for migr in unreg_migr:
                 self.logger.white('Executing migration %s...' % migr)
-                migr = re.sub('\.py$', '', migr)
-                module_name = '%s.%s' % (self.MIGRATIONS_DIRECTORY, migr)
+                migr_name = re.sub('\.py$', '', migr)
+                module_name = '%s.%s' % (self.MIGRATIONS_DIRECTORY, migr_name)
                 migr_mod = importlib.import_module(module_name)
                 migr_mod.up(self.db)
+                self.collection.insert({'name': migr})
 
     @task
     def ignore(self, spec_migr=None):
@@ -218,12 +219,13 @@ class MigrationsManager(object):
             raise MigopyException(('Migration %s is not on unregistred ' +
                                    'migrations list. Can not be executed') %
                                   spec_migr)
-        spec_migr = re.sub('\.py$', '', spec_migr)
+        spec_migr_name = re.sub('\.py$', '', spec_migr)
         with cwd_in_syspath():
             migr_mod = importlib.import_module('%s.%s' %
-                                        (self.MIGRATIONS_DIRECTORY, spec_migr))
+                                    (self.MIGRATIONS_DIRECTORY, spec_migr_name))
         self.logger.white('Rollback migration %s...' % spec_migr)
         migr_mod.down(self.db)
+        self.collection.remove({'name': spec_migr})
 
     @task
     def dbdump(self):

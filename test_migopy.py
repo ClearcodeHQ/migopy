@@ -145,6 +145,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
+            self.migr_mng.collection = mock.Mock()
             self.migr_mng.execute()
             mdir = self.migr_mng.MIGRATIONS_DIRECTORY
             im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
@@ -153,6 +154,11 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                       mock.call().up('db_object')])
             self.assertEqual(self.migr_mng.logger.white.call_count, 2,
                              "Executions not logged")
+
+            # and register them as executed
+            self.migr_mng.collection.insert \
+                .assert_has_calls([mock.call({'name': '1_test.py'}),
+                                   mock.call({'name': '2_test.py'})])
 
             # when given specyfic migration, executes only it
             im_mock.reset_mock()
@@ -194,6 +200,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
+            self.migr_mng.collection = mock.Mock()
             self.migr_mng.rollback('1_test.py')
             mdir = self.migr_mng.MIGRATIONS_DIRECTORY
             im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
@@ -202,6 +209,10 @@ class MongoMigrationsBehavior(unittest.TestCase):
                              'Executed rollback on more than 1 migrations')
             self.assertEqual(self.migr_mng.logger.white.call_count, 1,
                              "Rollback not logged")
+
+            # and remove migration from register
+            self.migr_mng.collection.remove \
+                .assert_has_calls([mock.call({'name': '1_test.py'})])
 
             # when given specyfic migration is not found in unregistered
             with self.assertRaises(migopy.MigopyException):
