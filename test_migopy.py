@@ -71,8 +71,6 @@ class MigrationsCollectionMock(object):
                 return row
 
 
-
-
 class MongoMigrationsBehavior(unittest.TestCase):
     def setUp(self):
         class MockedMigrationsManager(migopy.MigrationsManager):
@@ -109,6 +107,10 @@ class MongoMigrationsBehavior(unittest.TestCase):
             unregistered = self.migr_mng.unregistered()
             self.assertEqual(unregistered, ['3_test.py', '12_test.py'])
 
+            # when migrations directory is not python module,
+            # creates __init__.py
+            self.assertTrue(os.path.exists('mongomigrations/__init__.py'))
+
             # when no migrations directory founded, raise exception
             test_dir.clear()
             with self.assertRaises(migopy.MigopyException) as cm:
@@ -132,7 +134,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
 
             self.migr_mng.logger.reset_mock()
             self.migr_mng.show_status()
-            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
+            self.assertEqual(self.migr_mng.logger.white_bold.call_count, 1,
                              "Not logged with white message")
             self.migr_mng.logger.red.\
                 assert_has_calls([mock.call('1_test.py'),
@@ -144,25 +146,25 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
             self.migr_mng.execute()
-            im_mock.assert_has_calls([mock.call('1_test'),
+            mdir = self.migr_mng.MIGRATIONS_DIRECTORY
+            im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
                                       mock.call().up('db_object'),
-                                      mock.call('2_test'),
+                                      mock.call('%s.2_test' % mdir),
                                       mock.call().up('db_object')])
-            self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+            self.assertEqual(self.migr_mng.logger.white.call_count, 2,
                              "Executions not logged")
 
             # when given specyfic migration, executes only it
             im_mock.reset_mock()
             self.migr_mng.execute('1_test.py')
-            im_mock.assert_has_calls([mock.call('1_test'),
+            im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
                                       mock.call().up('db_object')])
             self.assertEqual(im_mock().up.call_count, 1,
                              'More migrations executed')
 
-            # when given specyfic migration is not found in unregistered
+            # when given specyfic migration which is not found in unregistered
             with self.assertRaises(migopy.MigopyException):
                 self.migr_mng.execute('3_test.py')
-
 
     def test_it_ignore_migrations(self):
         self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
@@ -172,7 +174,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.migr_mng.collection.insert\
             .assert_has_calls([mock.call({'name': '1_test.py'}),
                                mock.call({'name': '2_test.py'})])
-        self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+        self.assertEqual(self.migr_mng.logger.white.call_count, 2,
                          "Ignores not logged")
 
         # when given specyfic migration, ignores only it
@@ -193,11 +195,12 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
             self.migr_mng.rollback('1_test.py')
-            im_mock.assert_has_calls([mock.call('1_test'),
+            mdir = self.migr_mng.MIGRATIONS_DIRECTORY
+            im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
                                       mock.call().down('db_object')])
             self.assertEqual(im_mock().down.call_count, 1,
                              'Executed rollback on more than 1 migrations')
-            self.assertEqual(self.migr_mng.logger.normal.call_count, 1,
+            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
                              "Rollback not logged")
 
             # when given specyfic migration is not found in unregistered
@@ -212,9 +215,13 @@ class MongoMigrationsBehavior(unittest.TestCase):
             rollback = mock.Mock()
 
         Migrations.show_status.migopy_task = 'default'
+        Migrations.show_status.__name__ = 'show_status'
         Migrations.execute.migopy_task = True
+        Migrations.execute.__name__ = 'execute'
         Migrations.ignore.migopy_task = True
+        Migrations.ignore.__name__ = 'ignore'
         Migrations.rollback.migopy_task = True
+        Migrations.rollback.__name__ = 'rollback'
         task = Migrations.create_task()
         self.assertFalse(Migrations.show_status.called)
         self.assertFalse(Migrations.execute.called)
@@ -291,7 +298,13 @@ class MongoMigrationsBehavior(unittest.TestCase):
         Migrations.logger.red.assert_called_once_with("Test message")
 
     def test_it_shows_help_for_each_migopy_task(self):
+        mock_attr = mock.MagicMock()
+        mock_attr.__name__ = 'name'
+        mock_attr.__doc__ = 'doc'
+
         class Migrations(self.MockedMigrationsManager):
+            task0 = mock_attr
+
             @migopy.task
             def task1(self):
                 "Test doc 1"
@@ -306,9 +319,15 @@ class MongoMigrationsBehavior(unittest.TestCase):
 
         migrations = Migrations.create_task()
         migrations('help')
-        self.assertTrue(Migrations.logger.normal.called, "Help not logger")
-        Migrations.logger.normal.assert_has_calls(
-            [mock.call('task1 - Test doc 1'), mock.call('task2 - Test doc 2')])
+        self.assertTrue(Migrations.logger.white.called, "Help not logger")
+        Migrations.logger.white.assert_has_calls(
+            [mock.call('fab migrations:task1 - Test doc 1'),
+             mock.call('fab migrations:task2 - Test doc 2')])
+
+        # it rejects attributes with dynamic attributes, where they can simulate
+        # accidentally migopy_task attribute (like mocks or pymongo objects)
+        self.assertFalse(mock.call('fab migrations:name - doc')
+            in Migrations.logger.white.mock_calls)
 
     def test_it_optionaly_do_mongodump_before_execution(self):
         with mock.patch('migopy.local') as local_mock:
@@ -323,7 +342,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.assertEqual(local_mock.call_count, 1, "local not called")
             call_arg = local_mock.call_args[0][0]
             self.assertTrue(call_arg.startswith('mongodump -d d -o'))
-            self.assertEqual(self.migr_mng.logger.normal.call_count, 1,
+            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
                              "Mongo dump not logged")
 
             # when given database name, user and password
@@ -334,5 +353,5 @@ class MongoMigrationsBehavior(unittest.TestCase):
             call_arg = local_mock.call_args[0][0]
             self.assertTrue(call_arg.startswith('mongodump -d d -o'))
             self.assertTrue(call_arg.endswith('-u u -p p'))
-            self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+            self.assertEqual(self.migr_mng.logger.white.call_count, 2,
                              "Mongo dump not logged")

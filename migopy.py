@@ -22,7 +22,9 @@ import logging
 import os
 import pymongo
 import re
+import sys
 
+from contextlib import contextmanager
 from fabric.api import local
 from fabric.colors import green, white, red
 
@@ -33,6 +35,13 @@ class MigopyException(Exception):
 
 class StopTaskExecution(Exception):
     pass
+
+
+@contextmanager
+def cwd_in_syspath():
+    sys.path.insert(0, os.getcwd())
+    yield
+    sys.path.pop(0)
 
 
 def task(method=None, default=False):
@@ -62,9 +71,9 @@ class ColorsLogger(object):
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(handler)
+        self._logger = logging.getLogger()
+        self._logger.setLevel(logging.DEBUG)
+        self._logger.addHandler(handler)
 
     def white(self, msg):
         self._logger.info(white(msg))
@@ -75,8 +84,8 @@ class ColorsLogger(object):
     def green(self, msg):
         self._logger.info(green(msg))
 
-    def normal(self, msg):
-        self._logger.info(msg)
+    def white_bold(self, msg):
+        self._logger.info(white(msg, bold=True))
 
 
 class MigrationsManager(object):
@@ -97,8 +106,8 @@ class MigrationsManager(object):
         self.db = None
         self.collection = None
         if self.MONGO_DATABASE:
-            self.mongo_client = MongoClient(self.MONGO_HOST,
-                                            self.MONGO_PORT)
+            self.mongo_client = self.MongoClient(self.MONGO_HOST,
+                                                 self.MONGO_PORT)
             self.db = self.mongo_client[self.MONGO_DATABASE]
             self.collection = self.db[self.MIGRATIONS_COLLECTION]
 
@@ -106,6 +115,9 @@ class MigrationsManager(object):
         exc_msg = "Founded incorrect name of migration file: %s\n" + \
                   "Script aborted. Required pattern: " + \
                   self.MIGRATIONS_FILE_PATTERN
+
+        if '__init__.py' in migr_files:
+            migr_files.remove('__init__.py')
 
         if len(migr_files) == 1:
             match1 = re.match(self.MIGRATIONS_FILE_PATTERN, migr_files[0])
@@ -117,8 +129,10 @@ class MigrationsManager(object):
         def sort_func(fname1, fname2):
             match1 = re.match(self.MIGRATIONS_FILE_PATTERN, fname1)
             match2 = re.match(self.MIGRATIONS_FILE_PATTERN, fname2)
+
             if not match1 or not match2:
                 raise MigopyException(exc_msg)
+
             m1_nr = int(match1.group('migr_nr'))
             m2_nr = int(match2.group('migr_nr'))
             return cmp(m1_nr, m2_nr)
@@ -129,6 +143,12 @@ class MigrationsManager(object):
         if not os.path.exists(self.MIGRATIONS_DIRECTORY):
             raise MigopyException("Migrations directory %s not founded" %
                                   self.MIGRATIONS_DIRECTORY)
+
+        initpy_path = '%s/__init__.py' % self.MIGRATIONS_DIRECTORY
+        if not os.path.exists(initpy_path):
+            with open(initpy_path, 'w'):
+                pass
+
         migr_files = [fname for fname in os.listdir(self.MIGRATIONS_DIRECTORY)
                       if re.search('\.py$', fname)]
         migr_files = [filename for filename in migr_files if
@@ -137,10 +157,11 @@ class MigrationsManager(object):
 
     @task(default=True)
     def show_status(self):
+        """Show status of unregistered migrations (default)"""
         unreg_migr = self.unregistered()
         if unreg_migr:
-            self.logger.white('Unregistered migrations ' +
-                              '(fab migrations:execute to execute them):')
+            self.logger.white_bold('Unregistered migrations ' +
+                                   '(fab migrations:execute to execute them):')
             for migr in unreg_migr:
                 self.logger.red(migr)
         else:
@@ -148,6 +169,7 @@ class MigrationsManager(object):
 
     @task
     def execute(self, spec_migr=None):
+        """Executes migrations"""
         unreg_migr = self.unregistered()
         if not unreg_migr:
             self.show_status()
@@ -161,14 +183,17 @@ class MigrationsManager(object):
         if spec_migr:
             unreg_migr = [spec_migr]
 
-        for migr in unreg_migr:
-            self.logger.normal('Executing migration %s...' % migr)
-            migr = re.sub('\.py$', '', migr)
-            migr_mod = importlib.import_module(migr)
-            migr_mod.up(self.db)
+        with cwd_in_syspath():
+            for migr in unreg_migr:
+                self.logger.white('Executing migration %s...' % migr)
+                migr = re.sub('\.py$', '', migr)
+                module_name = '%s.%s' % (self.MIGRATIONS_DIRECTORY, migr)
+                migr_mod = importlib.import_module(module_name)
+                migr_mod.up(self.db)
 
     @task
     def ignore(self, spec_migr=None):
+        """Register migrations without executing"""
         unreg_migr = self.unregistered()
         if not unreg_migr:
             self.show_status()
@@ -183,22 +208,26 @@ class MigrationsManager(object):
             unreg_migr = [spec_migr]
 
         for migr in unreg_migr:
-            self.logger.normal('Registering migration %s...' % migr)
+            self.logger.white('Registering migration %s...' % migr)
             self.collection.insert({'name': migr})
 
     @task
     def rollback(self, spec_migr):
+        """Rollback specyfic migration"""
         if spec_migr not in self.unregistered():
             raise MigopyException(('Migration %s is not on unregistred ' +
                                    'migrations list. Can not be executed') %
                                   spec_migr)
         spec_migr = re.sub('\.py$', '', spec_migr)
-        migr_mod = importlib.import_module(spec_migr)
-        self.logger.normal('Rollback migration %s...' % spec_migr)
+        with cwd_in_syspath():
+            migr_mod = importlib.import_module('%s.%s' %
+                                        (self.MIGRATIONS_DIRECTORY, spec_migr))
+        self.logger.white('Rollback migration %s...' % spec_migr)
         migr_mod.down(self.db)
 
     @task
     def dbdump(self):
+        """Do mongo dump"""
         if not self.DO_MONGO_DUMP:
             return None
 
@@ -211,7 +240,7 @@ class MigrationsManager(object):
         if self.MONGO_USER and self.MONGO_USER_PASS:
             command += '-u %s -p %s' % (self.MONGO_USER, self.MONGO_USER_PASS)
 
-        self.logger.normal('Doing mongo dump...')
+        self.logger.white('Doing mongo dump...')
         local(command)
 
     @staticmethod
@@ -219,17 +248,20 @@ class MigrationsManager(object):
         """It returns all migopy tasks"""
         for attr_name in dir(migr_mng):
             attr = getattr(migr_mng, attr_name)
-            if hasattr(attr, 'migopy_task'):
+            if hasattr(attr, 'migopy_task') and (attr.migopy_task == True or
+                attr.migopy_task == 'default'):
                 yield attr
 
     @task
     def help(self):
+        """Show help for migrations commands"""
         for task in self.tasks(self):
             if hasattr(task, '__doc__') and hasattr(task, '__name__') and \
                 task.__doc__ and task.__name__:
                 name = task.__name__
                 doc = task.__doc__.replace('\n', ' ')
-                self.logger.normal("%s - %s" % (name, doc.strip()))
+                self.logger.white("fab migrations:%s - %s" %
+                                   (name, doc.strip()))
 
     @classmethod
     def task_hook(cls, subtask, option):
@@ -242,24 +274,20 @@ class MigrationsManager(object):
                 cls.task_hook(subtask, spec_migr)
                 migrations = cls()
                 # migration manager attributes
-                for attr_name in dir(migrations):
-                    attr = getattr(migrations, attr_name)
-                    # check if is migopy task
-                    if hasattr(attr, 'migopy_task'):
-                        # not default tasks searching
-                        if subtask and subtask == attr_name:
-                            if spec_migr:
-                                return getattr(migrations, subtask)(spec_migr)
-                            else:
-                                return getattr(migrations, subtask)()
+                for task in cls.tasks(migrations):
+                    # not default tasks searching
+                    if subtask and subtask == task.__name__:
+                        if spec_migr:
+                            return task(spec_migr)
+                        else:
+                            return task()
 
-                        # default task searching
-                        if not subtask and getattr(attr, 'migopy_task')\
-                                == 'default':
-                            if spec_migr:
-                                return getattr(migrations, attr_name)(spec_migr)
-                            else:
-                                return getattr(migrations, attr_name)()
+                    # default task searching
+                    if not subtask and task.migopy_task == 'default':
+                        if spec_migr:
+                            return task(spec_migr)
+                        else:
+                            return task()
             except StopTaskExecution:
                 pass
 
