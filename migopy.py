@@ -17,6 +17,7 @@
 #along with migopy.  If not, see <http://www.gnu.org/licenses/>.
 
 import importlib
+import logging
 import os
 import pymongo
 import re
@@ -33,8 +34,9 @@ class StopTaskExecution(Exception):
 
 
 def task(method=None, default=False):
-    """Decoratores which marks which methods o migration manager
-    will be subtask of migration fabric task"""
+    """Decoratorator which marks which methods of migration manager
+    will be subtasks of migration fabric task. It only adds 'migopy_task'
+    attribute with proper value."""
     if method:
         if default:
             method.migopy_task = 'default'
@@ -51,6 +53,30 @@ def task(method=None, default=False):
         return wrapper
 
 
+class ColorsLogger(object):
+    "Logger adapter"
+    def __init__(self):
+        formatter = logging.Formatter('%(message)s')
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(formatter)
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+
+    def white(self, msg):
+        self._logger.info(white(msg))
+
+    def red(self, msg):
+        self._logger.info(red(msg))
+
+    def green(self, msg):
+        self._logger.info(green(msg))
+
+    def normal(self, msg):
+        self._logger.info(msg)
+
+
 class MigrationsManager(object):
     MIGRATIONS_FILE_PATTERN = '(?P<migr_nr>[0-9]+)_[a-z0-9_]+\.py'
     MIGRATIONS_COLLECTION = 'migrations'
@@ -58,6 +84,7 @@ class MigrationsManager(object):
     MONGO_HOST = 'localhost'
     MONGO_PORT = 27017
     MONGO_DATABASE = None
+    logger = ColorsLogger()
 
     def __init__(self):
         self.db = None
@@ -105,12 +132,12 @@ class MigrationsManager(object):
     def show_status(self):
         unreg_migr = self.unregistered()
         if unreg_migr:
-            white('Unregistered migrations (fab migrations:execute to ' +
-                  'execute them):')
+            self.logger.white('Unregistered migrations ' +
+                              '(fab migrations:execute to execute them):')
             for migr in unreg_migr:
-                red(migr)
+                self.logger.red(migr)
         else:
-            green('All migrations registered, nothing to execute')
+            self.logger.green('All migrations registered, nothing to execute')
 
     @task
     def execute(self, spec_migr=None):
@@ -128,6 +155,7 @@ class MigrationsManager(object):
             unreg_migr = [spec_migr]
 
         for migr in unreg_migr:
+            self.logger.normal('Executing migration %s...' % migr)
             migr = re.sub('\.py$', '', migr)
             migr_mod = importlib.import_module(migr)
             migr_mod.up(self.db)
@@ -148,6 +176,7 @@ class MigrationsManager(object):
             unreg_migr = [spec_migr]
 
         for migr in unreg_migr:
+            self.logger.normal('Registering migration %s...' % migr)
             self.collection.insert({'name': migr})
 
     @task
@@ -158,6 +187,7 @@ class MigrationsManager(object):
                                   spec_migr)
         spec_migr = re.sub('\.py$', '', spec_migr)
         migr_mod = importlib.import_module(spec_migr)
+        self.logger.normal('Rollback migration %s...' % spec_migr)
         migr_mod.down(self.db)
 
     @classmethod
@@ -191,5 +221,8 @@ class MigrationsManager(object):
                                 return getattr(migrations, attr_name)()
             except StopTaskExecution:
                 pass
+
+            except MigopyException as e:
+                cls.logger.red(e.message)
 
         return task

@@ -73,7 +73,10 @@ class MigrationsCollectionMock(object):
 
 class MongoMigrationsBehavior(unittest.TestCase):
     def setUp(self):
-        self.migr_mng = migopy.MigrationsManager()
+        class Migrations(migopy.MigrationsManager):
+            logger = mock.Mock()
+
+        self.migr_mng = Migrations()
 
     def test_it_sorts_migration_files(self):
         migrations = ['3_abc.py', '1_abc_cde.py', '2_abc.py']
@@ -115,26 +118,21 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.migr_mng.collection = MigrationsCollectionMock()
             test_dir.mkdir('mongomigrations')
             # when no migrations files found, show 'all registered'
-            with mock.patch('migopy.green') as green_mock:
-                self.migr_mng.show_status()
-                green_mock.assert_called_once_with(
-                    'All migrations registered, nothing to execute')
+            self.migr_mng.show_status()
+            self.assertEqual(self.migr_mng.logger.green.call_count, 1,
+                             "Not logged with green message")
 
             # when some files found, check them and show status
             test_dir.touch('mongomigrations/1_test.py')
             test_dir.touch('mongomigrations/002_test.py')
 
-            with mock.patch('migopy.white') as white_mock:
-                self.migr_mng.show_status()
-                white_mock.assert_called_once_with(
-                    'Unregistered migrations (fab migrations:execute to ' +
-                    'execute them):'
-                )
-
-            with mock.patch('migopy.red') as red_mock:
-                self.migr_mng.show_status()
-                red_mock.assert_has_calls([mock.call('1_test.py'),
-                                           mock.call('002_test.py')])
+            self.migr_mng.logger.reset_mock()
+            self.migr_mng.show_status()
+            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
+                             "Not logged with white message")
+            self.migr_mng.logger.red.\
+                assert_has_calls([mock.call('1_test.py'),
+                                  mock.call('002_test.py')])
 
     def test_it_execute_migrations(self):
         with mock.patch('importlib.import_module') as im_mock:
@@ -146,6 +144,8 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                       mock.call().up('db_object'),
                                       mock.call('2_test'),
                                       mock.call().up('db_object')])
+            self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+                             "Executions not logged")
 
             # when given specyfic migration, executes only it
             im_mock.reset_mock()
@@ -168,6 +168,8 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.migr_mng.collection.insert\
             .assert_has_calls([mock.call({'name': '1_test.py'}),
                                mock.call({'name': '2_test.py'})])
+        self.assertEqual(self.migr_mng.logger.normal.call_count, 2,
+                         "Ignores not logged")
 
         # when given specyfic migration, ignores only it
         self.migr_mng.collection.reset_mock()
@@ -191,6 +193,8 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                       mock.call().down('db_object')])
             self.assertEqual(im_mock().down.call_count, 1,
                              'Executed rollback on more than 1 migrations')
+            self.assertEqual(self.migr_mng.logger.normal.call_count, 1,
+                             "Rollback not logged")
 
             # when given specyfic migration is not found in unregistered
             with self.assertRaises(migopy.MigopyException):
@@ -256,14 +260,35 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertEqual(migr_task(), 'task3_result')
 
     def test_it_allow_to_implement_task_hook(self):
+        is_remote = True
+
         class Migrations(migopy.MigrationsManager):
             show_status = mock.Mock()
 
             @classmethod
             def task_hook(cls, subtask, option):
-                raise migopy.StopTaskExecution()
+                if is_remote:
+                    raise migopy.StopTaskExecution()
 
         Migrations.show_status.migopy_task = 'default'
         task = Migrations.create_task()
         task()
         self.assertFalse(Migrations.show_status.called)
+
+    def test_it_logs_errors_as_red_messages(self):
+        class Migrations(migopy.MigrationsManager):
+            logger = mock.Mock()
+
+            @migopy.task(default=True)
+            def show_status(self):
+                raise migopy.MigopyException("Test message")
+
+        task = Migrations.create_task()
+        task()
+        Migrations.logger.red.assert_called_once_with("Test message")
+
+    def test_it_shows_help_for_each_migopy_task(self):
+        pass
+
+    def test_it_optionaly_do_mongodump_before_execution(self):
+        pass
