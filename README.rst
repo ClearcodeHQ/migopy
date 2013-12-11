@@ -50,16 +50,16 @@ should fulfill default pattern:
 
 Basic commands:
 
-* fab migrations - show unregistered migrations
-* fab migrations:execute - execute unregistered migrations
-* fab migrations:ignore - register unregistered migrations without executing them
-* fab migrations:help - show help about the commands
+* `fab migrations` - show unregistered migrations
+* `fab migrations:execute` - execute unregistered migrations
+* `fab migrations:ignore` - register unregistered migrations without executing them
+* `fab migrations:help` - show help about the migopy commands
 
 Additional commands:
 
-* fab migrations:execute,ex_1_ex - execute specyfic migration
-* fab migrations:rollback,ex_1_ex - rollback specyfic migration (do down() function)
-* fab migrations:ignore,ex_2_ex - ignore specyfic migration
+* `fab migrations:execute,ex_1_ex` - execute specyfic migration
+* `fab migrations:rollback,ex_1_ex` - rollback specyfic migration (do down() function)
+* `fab migrations:ignore,ex_2_ex` - ignore specyfic migration
 
 
 Structure of migration file:
@@ -159,6 +159,7 @@ Additional configuration
     class Migrations(migopy.MigrationsManager):
         MIGRATIONS_DIRECTORY = # directory where migrations files will be stored
         MIGRATIONS_FILE_PATTERN = # regex pattern of the migrations files
+        DO_MONGO_DUMP = True # will do mongo dump before migrations execution
         MONGO_DUMP_DIRECTORY = # directory where database dump will be stored
 
 You can override selected methods
@@ -166,8 +167,14 @@ You can override selected methods
 .. code-block:: python
 
     class Migrations(migopy.MigrationsManager):
-        def do_dump(self):
-            pass
+        @migopy.task
+        def execute(self, spec_migr=None):
+            super(Migrations, self).execute(spec_migr)
+            ...
+
+        @migopy.task
+        def do_mongo_dump(self):
+            ...
 
 
 You can add, additional migrations subtasks
@@ -179,7 +186,8 @@ You can add, additional migrations subtasks
     class Migrations(migopy.MigrationsManager):
         @migopy.task
         def dump(self):
-            "Here should be a help doc"
+            """Here should be a help doc which will be showed under
+            fab migrations:help command"""
             pass
 
 ::
