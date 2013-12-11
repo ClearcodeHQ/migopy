@@ -140,17 +140,18 @@ class MongoMigrationsBehavior(unittest.TestCase):
         with mock.patch('importlib.import_module') as im_mock:
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
+            self.migr_mng.db = 'db_object'
             self.migr_mng.execute()
             im_mock.assert_has_calls([mock.call('1_test'),
-                                      mock.call().up(),
+                                      mock.call().up('db_object'),
                                       mock.call('2_test'),
-                                      mock.call().up()])
+                                      mock.call().up('db_object')])
 
             # when given specyfic migration, executes only it
             im_mock.reset_mock()
             self.migr_mng.execute('1_test.py')
             im_mock.assert_has_calls([mock.call('1_test'),
-                                      mock.call().up()])
+                                      mock.call().up('db_object')])
             self.assertEqual(im_mock().up.call_count, 1,
                              'More migrations executed')
 
@@ -180,14 +181,14 @@ class MongoMigrationsBehavior(unittest.TestCase):
         with self.assertRaises(migopy.MigopyException):
             self.migr_mng.ignore('3_test.py')
 
-
     def test_it_rollback_migration(self):
         with mock.patch('importlib.import_module') as im_mock:
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
+            self.migr_mng.db = 'db_object'
             self.migr_mng.rollback('1_test.py')
             im_mock.assert_has_calls([mock.call('1_test'),
-                                      mock.call().down()])
+                                      mock.call().down('db_object')])
             self.assertEqual(im_mock().down.call_count, 1,
                              'Executed rollback on more than 1 migrations')
 
@@ -253,3 +254,16 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertEqual(migr_task('task1'), 'task1_result')
         self.assertEqual(migr_task('task2'), 'task2_result')
         self.assertEqual(migr_task(), 'task3_result')
+
+    def test_it_allow_to_implement_task_hook(self):
+        class Migrations(migopy.MigrationsManager):
+            show_status = mock.Mock()
+
+            @classmethod
+            def task_hook(cls, subtask, option):
+                raise migopy.StopTaskExecution()
+
+        Migrations.show_status.migopy_task = 'default'
+        task = Migrations.create_task()
+        task()
+        self.assertFalse(Migrations.show_status.called)

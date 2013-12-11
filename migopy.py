@@ -28,6 +28,10 @@ class MigopyException(Exception):
     pass
 
 
+class StopTaskExecution(Exception):
+    pass
+
+
 def task(method=None, default=False):
     """Decoratores which marks which methods o migration manager
     will be subtask of migration fabric task"""
@@ -126,7 +130,7 @@ class MigrationsManager(object):
         for migr in unreg_migr:
             migr = re.sub('\.py$', '', migr)
             migr_mod = importlib.import_module(migr)
-            migr_mod.up()
+            migr_mod.up(self.db)
 
     @task
     def ignore(self, spec_migr=None):
@@ -154,30 +158,38 @@ class MigrationsManager(object):
                                   spec_migr)
         spec_migr = re.sub('\.py$', '', spec_migr)
         migr_mod = importlib.import_module(spec_migr)
-        migr_mod.down()
+        migr_mod.down(self.db)
+
+    @classmethod
+    def task_hook(cls, subtask, option):
+        pass
 
     @classmethod
     def create_task(cls):
         def task(subtask=None, spec_migr=None):
-            migrations = cls()
-            # migration manager attributes
-            for attr_name in dir(migrations):
-                attr = getattr(migrations, attr_name)
-                # check if is migopy task
-                if hasattr(attr, 'migopy_task'):
-                    # not default tasks searching
-                    if subtask and subtask == attr_name:
-                        if spec_migr:
-                            return getattr(migrations, subtask)(spec_migr)
-                        else:
-                            return getattr(migrations, subtask)()
+            try:
+                cls.task_hook(subtask, spec_migr)
+                migrations = cls()
+                # migration manager attributes
+                for attr_name in dir(migrations):
+                    attr = getattr(migrations, attr_name)
+                    # check if is migopy task
+                    if hasattr(attr, 'migopy_task'):
+                        # not default tasks searching
+                        if subtask and subtask == attr_name:
+                            if spec_migr:
+                                return getattr(migrations, subtask)(spec_migr)
+                            else:
+                                return getattr(migrations, subtask)()
 
-                    # default task searching
-                    if not subtask and getattr(attr, 'migopy_task')\
-                            == 'default':
-                        if spec_migr:
-                            return getattr(migrations, attr_name)(spec_migr)
-                        else:
-                            return getattr(migrations, attr_name)()
+                        # default task searching
+                        if not subtask and getattr(attr, 'migopy_task')\
+                                == 'default':
+                            if spec_migr:
+                                return getattr(migrations, attr_name)(spec_migr)
+                            else:
+                                return getattr(migrations, attr_name)()
+            except StopTaskExecution:
+                pass
 
         return task

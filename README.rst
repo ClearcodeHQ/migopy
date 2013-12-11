@@ -93,7 +93,7 @@ Example of fabfile.py:
 .. code-block:: python
 
     import migopy
-    import settings
+    import settings # your settings
 
     is_remote = False
 
