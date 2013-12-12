@@ -115,6 +115,9 @@ Example of fabfile.py:
 
 
     migrations = Migrations.create_task()
+    # or for new style tasks:
+    # from fabric.api import task
+    # migrations = task(Migrations.create_task())
 
 In the case above when we want to run migrations on remote machines, under
 the hood we have to run for example `fab staging migrations` command by

@@ -266,12 +266,20 @@ class MigrationsManager(object):
                                    (name, doc.strip()))
 
     @classmethod
+    def fab_command(cls, subtask, option=None):
+        command = 'fab migrations:' + subtask
+        if option:
+            command += ',' + option
+        return command
+
+    @classmethod
     def task_hook(cls, subtask, option):
         pass
 
     @classmethod
     def create_task(cls):
-        def task(subtask=None, spec_migr=None):
+        def migrations(subtask=None, spec_migr=None):
+            """Mongo migrations (migopy)"""
             try:
                 cls.task_hook(subtask, spec_migr)
                 migrations = cls()
@@ -296,4 +304,4 @@ class MigrationsManager(object):
             except MigopyException as e:
                 cls.logger.red(e.message)
 
-        return task
+        return migrations

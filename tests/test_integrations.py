@@ -34,6 +34,18 @@ class Migrations(migopy.MigrationsManager):
 migrations = Migrations.create_task()
 """
 
+fabfile_with_task = """
+import migopy
+from fabric.api import task
+
+
+class Migrations(migopy.MigrationsManager):
+    MONGO_DATABASE = 'migopy_db_test'
+
+migrations = task(Migrations.create_task())
+
+"""
+
 files['mongomigrations/001_test.py'] = """
 def up(db):
     pass
@@ -122,3 +134,10 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
         self.assertEqual(len(glob('mongodumps/*')), 0)
         call('fab migrations:dbdump')
         self.assertEqual(len(glob('mongodumps/*')), 1)
+
+    def test_it_works_with_fabric_task_decorator(self):
+        self.tmp_dir.create_file('fabfile.py', fabfile_with_task)
+        msg = call('fab migrations')
+        self.assertNotIn('not found', msg, msg)
+        self.assertIn('2_test.py', msg)
+        self.assertIn('001_test.py', msg)
