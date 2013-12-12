@@ -19,6 +19,7 @@
 import migopy
 import subprocess
 import unittest
+from glob import glob
 from tests import TestDirectory
 
 files = dict()
@@ -50,6 +51,17 @@ def down(db):
 """
 
 
+def call(command):
+    """Helper for calling shell commands with stdout, stderr handling"""
+    proc = subprocess.Popen(command, shell=True,
+                            stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+    merr = proc.stderr.read()
+    print(merr)
+    print(proc.stdout.read())
+    return merr
+
+
 class MongoMigrationsIntegratedBehavior(unittest.TestCase):
     def setUp(self):
         class Migrations(migopy.MigrationsManager):
@@ -75,13 +87,38 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
             self.migr_mng.db.migo_coll.find_one({'name': 'migo_test'}))
 
     def test_it_do_fab_migrations(self):
-        subprocess.check_call('fab migrations', shell=True)
+        self.migr_mng.collection.insert({'name': '001_test.py'})
+        msg = call('fab migrations')
+        self.assertIn('2_test.py', msg)
+        self.assertNotIn('001_test.py', msg)
 
-    def test_id_do_fab_migrations_execute(self):
-        pass
+    def test_it_do_fab_migrations_execute(self):
+        call('fab migrations:execute')
+        msg = call('fab migrations')
+        self.assertNotIn('001_test.py', msg)
+        self.assertNotIn('2_test.py', msg)
+        self.assertIn('All migrations', msg)
+
+    def test_it_do_fab_migrations_execute_001_test(self):
+        call('fab migrations:execute,001_test.py')
+        msg = call('fab migrations')
+        self.assertNotIn('001_test.py', msg)
+        self.assertIn('2_test.py', msg)
 
     def test_it_do_fab_migrations_ignore(self):
-        pass
+        call('fab migrations:ignore')
+        msg = call('fab migrations')
+        self.assertNotIn('001_test.py', msg)
+        self.assertNotIn('2_test.py', msg)
+        self.assertIn('All migrations', msg)
+
+    def test_it_do_fab_migrations_ignore_001_test(self):
+        call('fab migrations:ignore,001_test.py')
+        msg = call('fab migrations')
+        self.assertNotIn('001_test.py', msg)
+        self.assertIn('2_test.py', msg)
 
     def test_it_do_fab_migrations_dbdump(self):
-        pass
+        self.assertEqual(len(glob('mongodumps/*')), 0)
+        call('fab migrations:dbdump')
+        self.assertEqual(len(glob('mongodumps/*')), 1)
