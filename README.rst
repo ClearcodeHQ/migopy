@@ -194,3 +194,26 @@ You can add, additional migrations subtasks
 
     fab migrations:dump
 
+
+
+Setup for development
+-----------------
+::
+
+    $ git clone https://github.com/clearcode/migopy.git
+    $ cd migopy
+    $ virtualenv venv
+    $ pip install -e .
+
+Unit tests::
+
+    $ python -m unittest tests.test_units
+
+Integration tests::
+
+    $ python -m unittest tests.test_integrations
+
+All::
+
+    $ python -m unittest discover
+
