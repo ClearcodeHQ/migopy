@@ -183,6 +183,9 @@ class MigrationsManager(object):
         if spec_migr:
             unreg_migr = [spec_migr]
 
+        if self.DO_MONGO_DUMP:
+            self.dbdump()
+
         with cwd_in_syspath():
             for migr in unreg_migr:
                 self.logger.white('Executing migration %s...' % migr)
@@ -230,9 +233,6 @@ class MigrationsManager(object):
     @task
     def dbdump(self):
         """Do mongo dump"""
-        if not self.DO_MONGO_DUMP:
-            return None
-
         if not self.MONGO_DATABASE:
             raise MigopyException("Name of mongo database not given")
 

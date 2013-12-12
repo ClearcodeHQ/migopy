@@ -79,6 +79,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
 
         self.MockedMigrationsManager = MockedMigrationsManager
         self.migr_mng = self.MockedMigrationsManager()
+        self.migr_mng.collection = mock.Mock()
 
     def test_it_sorts_migration_files(self):
         migrations = ['3_abc.py', '1_abc_cde.py', '2_abc.py']
@@ -145,7 +146,6 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
-            self.migr_mng.collection = mock.Mock()
             self.migr_mng.execute()
             mdir = self.migr_mng.MIGRATIONS_DIRECTORY
             im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
@@ -175,7 +175,6 @@ class MongoMigrationsBehavior(unittest.TestCase):
     def test_it_ignore_migrations(self):
         self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                              '2_test.py'])
-        self.migr_mng.collection = mock.Mock()
         self.migr_mng.ignore()
         self.migr_mng.collection.insert\
             .assert_has_calls([mock.call({'name': '1_test.py'}),
@@ -200,7 +199,6 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py',
                                                                  '2_test.py'])
             self.migr_mng.db = 'db_object'
-            self.migr_mng.collection = mock.Mock()
             self.migr_mng.rollback('1_test.py')
             mdir = self.migr_mng.MIGRATIONS_DIRECTORY
             im_mock.assert_has_calls([mock.call('%s.1_test' % mdir),
@@ -340,14 +338,9 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.assertFalse(mock.call('fab migrations:name - doc')
             in Migrations.logger.white.mock_calls)
 
-    def test_it_optionaly_do_mongodump_before_execution(self):
+    def test_it_do_mongodump(self):
         with mock.patch('migopy.local') as local_mock:
-            # when DO_MONGO_DUMP = False
-            self.migr_mng.dbdump()
-            self.assertFalse(local_mock.called)
-
             # when given only database name
-            self.migr_mng.DO_MONGO_DUMP = True
             self.migr_mng.MONGO_DATABASE = 'd'
             self.migr_mng.dbdump()
             self.assertEqual(local_mock.call_count, 1, "local not called")
@@ -366,3 +359,13 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.assertTrue(call_arg.endswith('-u u -p p'))
             self.assertEqual(self.migr_mng.logger.white.call_count, 2,
                              "Mongo dump not logged")
+
+    def test_it_optionaly_do_mongodump_before_execution(self):
+        with mock.patch('importlib.import_module'):
+            self.migr_mng.unregistered = mock.Mock(return_value=['1_test.py'])
+            self.migr_mng.dbdump = mock.Mock()
+            self.migr_mng.execute()
+            self.assertFalse(self.migr_mng.dbdump.called)
+            self.migr_mng.DO_MONGO_DUMP = True
+            self.migr_mng.execute()
+            self.assertTrue(self.migr_mng.dbdump.called)
