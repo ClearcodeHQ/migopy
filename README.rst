@@ -41,6 +41,9 @@ informations
         MONGO_PASSWORD = # password
 
     migrations = Migrations.create_task()
+    # or for new style tasks:
+    # from fabric.api import task
+    # migrations = task(Migrations.create_task())
 
 and You are done. Migrations files should be putted in 'mongomigrations'
 directory which is at the same level as fabfile.py and names of migrations files
@@ -115,9 +118,6 @@ Example of fabfile.py:
 
 
     migrations = Migrations.create_task()
-    # or for new style tasks:
-    # from fabric.api import task
-    # migrations = task(Migrations.create_task())
 
 In the case above when we want to run migrations on remote machines, under
 the hood we have to run for example `fab staging migrations` command by
