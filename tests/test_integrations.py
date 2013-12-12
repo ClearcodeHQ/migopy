@@ -75,7 +75,7 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
             self.migr_mng.db.migo_coll.find_one({'name': 'migo_test'}))
 
     def test_it_do_fab_migrations(self):
-        subprocess.check_call('fab migrations', stdout=output, shell=True)
+        subprocess.check_call('fab migrations', shell=True)
 
     def test_id_do_fab_migrations_execute(self):
         pass
