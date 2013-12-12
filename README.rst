@@ -185,14 +185,15 @@ You can add, additional migrations subtasks
 
     class Migrations(migopy.MigrationsManager):
         @migopy.task
-        def dump(self):
+        def mytask(self, option=None):
             """Here should be a help doc which will be showed under
             fab migrations:help command"""
             pass
 
 ::
 
-    fab migrations:dump
+    fab migrations:mytask
+    fab migrations:mytask,some_option
 
 
 
@@ -203,6 +204,7 @@ Setup for development
     $ git clone https://github.com/clearcode/migopy.git
     $ cd migopy
     $ virtualenv venv
+    $ source venv/bin/activate
     $ pip install -e .
 
 Unit tests::
