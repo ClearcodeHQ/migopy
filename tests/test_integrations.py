@@ -1,6 +1,7 @@
 import migopy
 import unittest
 
+
 class MongoMigrationsIntegratedBehavior(unittest.TestCase):
     def test_it_connects_with_mongo_database(self):
         class Migrations(migopy.MigrationsManager):
@@ -11,3 +12,15 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
         self.assertFalse(migr.db.migo_coll.find_one({'name': 'test_migo'}))
         self.assertTrue(migr.db.migo_coll.find_one({'name': 'migo_test'}))
         migr.mongo_client.drop_database(Migrations.MONGO_DATABASE)
+
+    def test_it_do_fab_migrations(self):
+        pass
+
+    def test_id_do_fab_migrations_execute(self):
+        pass
+
+    def test_it_do_fab_migrations_ignore(self):
+        pass
+
+    def test_it_do_fab_migrations_dbdump(self):
+        pass
