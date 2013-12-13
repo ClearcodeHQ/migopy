@@ -1,8 +1,8 @@
-Migopy - Mongo Migrations for Python
+Migopy 1.0 beta - Mongo Migrations for Python
 =====================================
 
 Migopy is a simple python library which simply allows You to
-setup mongo migrations manager for Your fabfile (see fabfile.org): . After that
+setup mongo migrations manager for Your fabfile (see fabfile.org). After that
 You will be able to run command like this::
 
     fab migrations
@@ -25,7 +25,7 @@ Quick start
 
 At first install migopy:
 
-    pip install migopy
+    pip install --pre migopy
 
 then quickly configure mongo migrations in Your fabfile with basic
 informations
