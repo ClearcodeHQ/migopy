@@ -38,7 +38,7 @@ informations
         MONGO_HOST = # host
         MONGO_PORT = # port
         MONGO_USER = # username
-        MONGO_PASSWORD = # password
+        MONGO_USER_PASSWORD = # password
 
     migrations = Migrations.create_task()
     # or for new style tasks:
