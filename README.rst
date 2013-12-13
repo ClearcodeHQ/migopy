@@ -49,7 +49,7 @@ and You are done. Migrations files should be putted in 'mongomigrations'
 directory which is at the same level as fabfile.py and names of migrations files
 should fulfill default pattern:
 
-    (?P<migr_nr>[0-9]+)_[a-z0-9_]+\.py
+    (?P<migr_nr>[0-9]+)_[a-z0-9_]+\\.py
 
 Basic commands:
 
@@ -60,9 +60,9 @@ Basic commands:
 
 Additional commands:
 
-* `fab migrations:execute,ex_1_ex` - execute specyfic migration
-* `fab migrations:rollback,ex_1_ex` - rollback specyfic migration (do down() function)
-* `fab migrations:ignore,ex_2_ex` - ignore specyfic migration
+* `fab migrations:execute,ex_1_ex.py` - execute specyfic migration
+* `fab migrations:rollback,ex_1_ex.py` - rollback specyfic migration (do down() function)
+* `fab migrations:ignore,ex_2_ex.py` - ignore specyfic migration
 
 
 Structure of migration file:

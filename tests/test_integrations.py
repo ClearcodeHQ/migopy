@@ -60,7 +60,7 @@ migrations = Migrations.create_task()
 
 files['mongomigrations/001_test.py'] = """
 def up(db):
-    pass
+    db.test_collection.insert({'test_key': 'test_content'})
 
 def down(db):
     pass
@@ -121,6 +121,8 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
         msg = call('fab migrations')
         self.assertNotIn('001_test.py', msg)
         self.assertNotIn('2_test.py', msg)
+        self.assertTrue(self.migr_mng.db.test_collection.find_one(
+            {'test_key': 'test_content'}))
         self.assertIn('All migrations', msg)
 
     def test_it_do_fab_migrations_execute_001_test(self):
