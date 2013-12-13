@@ -20,15 +20,27 @@ from distutils.core import setup
 
 setup(
     name='migopy',
-    version='1.0 beta',
+    version='1.0-beta',
+    description='Mongo migrations for Python',
+    url='https://github.com/clearcode/migopy',
+    license='LGPL',
     author='Pawel Galazka',
     author_email='p.galazka@clearcode.cc',
-    description='Mongo migrations for Python',
     packages=['migopy'],
     install_requires=[
         'pymongo',
         'fabric',
         'mock'
+    ],
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: Plugins',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Database',
+        'Topic :: Software Development :: Libraries'
     ]
 )
 
