@@ -105,7 +105,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                       mock.call().up('db_object'),
                                       mock.call('%s.2_test' % mdir),
                                       mock.call().up('db_object')])
-            self.assertEqual(self.migr_mng.logger.white.call_count, 2,
+            self.assertEqual(self.migr_mng.logger.white_bold.call_count, 2,
                              "Executions not logged")
 
             # and register them as executed
@@ -132,7 +132,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.migr_mng.collection.insert\
             .assert_has_calls([mock.call({'name': '1_test.py'}),
                                mock.call({'name': '2_test.py'})])
-        self.assertEqual(self.migr_mng.logger.white.call_count, 2,
+        self.assertEqual(self.migr_mng.logger.white_bold.call_count, 2,
                          "Ignores not logged")
 
         # when given specyfic migration, ignores only it
@@ -158,7 +158,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
                                       mock.call().down('db_object')])
             self.assertEqual(im_mock().down.call_count, 1,
                              'Executed rollback on more than 1 migrations')
-            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
+            self.assertEqual(self.migr_mng.logger.white_bold.call_count, 1,
                              "Rollback not logged")
 
             # and remove migration from register
@@ -299,7 +299,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.assertEqual(local_mock.call_count, 1, "local not called")
             call_arg = local_mock.call_args[0][0]
             self.assertTrue(call_arg.startswith('mongodump -d d -o'))
-            self.assertEqual(self.migr_mng.logger.white.call_count, 1,
+            self.assertEqual(self.migr_mng.logger.white_bold.call_count, 1,
                              "Mongo dump not logged")
 
             # when given database name, user and password
@@ -310,7 +310,7 @@ class MongoMigrationsBehavior(unittest.TestCase):
             call_arg = local_mock.call_args[0][0]
             self.assertTrue(call_arg.startswith('mongodump -d d -o'))
             self.assertTrue(call_arg.endswith('-u u -p p'))
-            self.assertEqual(self.migr_mng.logger.white.call_count, 2,
+            self.assertEqual(self.migr_mng.logger.white_bold.call_count, 2,
                              "Mongo dump not logged")
 
     def test_it_optionaly_do_mongodump_before_execution(self):

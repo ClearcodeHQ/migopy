@@ -26,7 +26,7 @@ import sys
 
 from contextlib import contextmanager
 from fabric.api import local
-from fabric.colors import green, white, red
+from fabric.colors import white
 
 
 class MigopyException(Exception):
@@ -35,6 +35,22 @@ class MigopyException(Exception):
 
 class StopTaskExecution(Exception):
     pass
+
+
+class Str(str):
+    """Add coloring abilities for terminal output
+    Usage: Str('something').color(Str.RED)
+    """
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    WHITE = '\033[37m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
+    def color(self, color_value, bold=False):
+        if bold:
+            return Str(self.BOLD + color_value + self + self.END)
+        return Str(color_value + self + self.END)
 
 
 @contextmanager
@@ -79,10 +95,10 @@ class ColorsLogger(object):
         self._logger.info(white(msg))
 
     def red(self, msg):
-        self._logger.info(red(msg))
+        self._logger.info(Str(msg).color(Str.RED))
 
     def green(self, msg):
-        self._logger.info(green(msg))
+        self._logger.info(Str(msg).color(Str.GREEN))
 
     def white_bold(self, msg):
         self._logger.info(white(msg, bold=True))
@@ -188,7 +204,7 @@ class MigrationsManager(object):
 
         with cwd_in_syspath():
             for migr in unreg_migr:
-                self.logger.white('Executing migration %s...' % migr)
+                self.logger.white_bold('Executing migration %s...' % migr)
                 migr_name = re.sub('\.py$', '', migr)
                 module_name = '%s.%s' % (self.MIGRATIONS_DIRECTORY, migr_name)
                 migr_mod = importlib.import_module(module_name)
@@ -212,7 +228,7 @@ class MigrationsManager(object):
             unreg_migr = [spec_migr]
 
         for migr in unreg_migr:
-            self.logger.white('Registering migration %s...' % migr)
+            self.logger.white_bold('Registering migration %s...' % migr)
             self.collection.insert({'name': migr})
 
     @task
@@ -226,7 +242,7 @@ class MigrationsManager(object):
         with cwd_in_syspath():
             migr_mod = importlib.import_module('%s.%s' %
                                     (self.MIGRATIONS_DIRECTORY, spec_migr_name))
-        self.logger.white('Rollback migration %s...' % spec_migr)
+        self.logger.white_bold('Rollback migration %s...' % spec_migr)
         migr_mod.down(self.db)
         self.collection.remove({'name': spec_migr})
 
@@ -242,7 +258,7 @@ class MigrationsManager(object):
         if self.MONGO_USER and self.MONGO_USER_PASS:
             command += '-u %s -p %s' % (self.MONGO_USER, self.MONGO_USER_PASS)
 
-        self.logger.white('Doing mongo dump...')
+        self.logger.white_bold('Doing mongo dump...')
         local(command)
 
     @staticmethod
