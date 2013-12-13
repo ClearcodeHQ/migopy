@@ -165,6 +165,7 @@ Additional configuration
         DO_MONGO_DUMP = True # will do mongo dump before migrations execution
         MONGO_DUMP_DIRECTORY = # directory where database dump will be stored
 
+For more, check migopy.MigrationsManager class attributes.
 You can override selected methods
 
 .. code-block:: python
@@ -176,7 +177,7 @@ You can override selected methods
             ...
 
         @migopy.task
-        def do_mongo_dump(self):
+        def dbdump(self):
             ...
 
 
