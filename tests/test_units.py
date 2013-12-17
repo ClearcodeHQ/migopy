@@ -324,6 +324,10 @@ class MongoMigrationsBehavior(unittest.TestCase):
             self.assertTrue(self.migr_mng.dbdump.called)
 
     def test_it_create_fab_command_from_given_arguments(self):
+        self.assertEqual(self.MockedMigrationsManager.fab_command(),
+                         'fab migrations')
+        self.assertEqual(self.MockedMigrationsManager.fab_command(None),
+                         'fab migrations')
         self.assertEqual(self.MockedMigrationsManager.fab_command('task1'),
                          "fab migrations:task1")
         self.assertEqual(self.MockedMigrationsManager.

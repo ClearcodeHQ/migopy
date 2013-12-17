@@ -282,10 +282,12 @@ class MigrationsManager(object):
                                    (name, doc.strip()))
 
     @classmethod
-    def fab_command(cls, subtask, option=None):
-        command = 'fab migrations:' + subtask
-        if option:
-            command += ',' + option
+    def fab_command(cls, subtask=None, option=None):
+        command = 'fab migrations'
+        if subtask:
+            command += ':' + subtask
+            if option:
+                command += ',' + option
         return command
 
     @classmethod
