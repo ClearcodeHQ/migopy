@@ -87,7 +87,7 @@ class ColorsLogger(object):
         handler = logging.StreamHandler()
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
-        self._logger = logging.getLogger()
+        self._logger = logging.getLogger('migopy')
         self._logger.setLevel(logging.DEBUG)
         self._logger.addHandler(handler)
 
