@@ -122,7 +122,13 @@ class MigrationsManager(object):
         self.db = None
         self.collection = None
         if self.MONGO_DATABASE:
-            self.mongo_client = self.MongoClient(self.MONGO_HOST,
+            if self.MONGO_USER and self.MONGO_USER_PASS:
+                mongo_host = '%s:%s@%s' % (self.MONGO_USER,
+                                           self.MONGO_USER_PASS,
+                                           self.MONGO_HOST)
+            else:
+                mongo_host = self.MONGO_HOST
+            self.mongo_client = self.MongoClient(mongo_host,
                                                  self.MONGO_PORT)
             self.db = self.mongo_client[self.MONGO_DATABASE]
             self.collection = self.db[self.MIGRATIONS_COLLECTION]

@@ -34,6 +34,35 @@ class MongoMigrationsBehavior(unittest.TestCase):
         self.migr_mng = self.MockedMigrationsManager()
         self.migr_mng.collection = mock.Mock()
 
+    def test_it_connects_with_mongo(self):
+        class Migrations(migopy.MigrationsManager):
+            logger = mock.Mock()
+            MongoClient = mock.MagicMock()
+            MONGO_HOST = 'mongo_host'
+            MONGO_PORT = 11111
+
+        # when database not given
+        Migrations()
+        self.assertFalse(Migrations.MongoClient.called)
+
+        # when database given
+        Migrations.logger.reset_mock()
+        Migrations.MongoClient.reset_mock()
+        Migrations.MONGO_DATABASE = 'test_db'
+        Migrations()
+        Migrations.MongoClient.assert_called_once_with('mongo_host', 11111)
+
+
+        # when user and user password given
+        Migrations.logger.reset_mock()
+        Migrations.MongoClient.reset_mock()
+        Migrations.MONGO_USER = 'mongo_user'
+        Migrations.MONGO_USER_PASS = 'mongo_user_pass'
+        Migrations()
+        Migrations.MongoClient.\
+            assert_called_once_with('mongo_user:mongo_user_pass@mongo_host',
+                                    11111)
+
     def test_it_sorts_migration_files(self):
         migrations = ['3_abc.py', '1_abc_cde.py', '2_abc.py']
         sorted = self.migr_mng.sorted(migrations)
