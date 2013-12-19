@@ -59,9 +59,9 @@ class MongoMigrationsBehavior(unittest.TestCase):
         Migrations.MONGO_USER = 'mongo_user'
         Migrations.MONGO_USER_PASS = 'mongo_user_pass'
         Migrations()
-        Migrations.MongoClient.\
-            assert_called_once_with(
-                'mongodb://mongo_user:mongo_user_pass@mongo_host:11111')
+        Migrations.MongoClient.assert_called_once_with('mongo_host', 11111)
+        Migrations.MongoClient().__getitem__().authenticate.\
+            assert_called_once_with('mongo_user', 'mongo_user_pass')
 
     def test_it_sorts_migration_files(self):
         migrations = ['3_abc.py', '1_abc_cde.py', '2_abc.py']

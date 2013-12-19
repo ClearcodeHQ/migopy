@@ -122,16 +122,11 @@ class MigrationsManager(object):
         self.db = None
         self.collection = None
         if self.MONGO_DATABASE:
-            if self.MONGO_USER and self.MONGO_USER_PASS:
-                mongo_host = 'mongodb://%s:%s@%s:%s' % (self.MONGO_USER,
-                                                        self.MONGO_USER_PASS,
-                                                        self.MONGO_HOST,
-                                                        self.MONGO_PORT)
-                self.mongo_client = self.MongoClient(mongo_host)
-            else:
-                self.mongo_client = self.MongoClient(self.MONGO_HOST,
-                                                     self.MONGO_PORT)
+            self.mongo_client = self.MongoClient(self.MONGO_HOST,
+                                                 self.MONGO_PORT)
             self.db = self.mongo_client[self.MONGO_DATABASE]
+            if self.MONGO_USER and self.MONGO_USER_PASS:
+                self.db.authenticate(self.MONGO_USER, self.MONGO_USER_PASS)
             self.collection = self.db[self.MIGRATIONS_COLLECTION]
 
     def sorted(self, migr_files):

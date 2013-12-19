@@ -112,15 +112,14 @@ class MongoMigrationsIntegratedBehavior(unittest.TestCase):
             self.migr_mng.db.migo_coll.find_one({'name': 'migo_test'}))
 
         # when user data given to connection
+        self.migr_mng.db.add_user('migopy', 'migopy_pass')
         class Migrations(migopy.MigrationsManager):
             MONGO_DATABASE = 'migopy_db_test'
             MONGO_USER = 'migopy'
             MONGO_USER_PASS = 'migopy_pass'
 
-        with self.assertRaises(pymongo.errors.ConfigurationError) as cm:
-            Migrations()
-
-        self.assertIn('auth fails', cm.exception.message, cm.exception.message)
+        Migrations()
+        self.migr_mng.db.remove_user('migopy')
 
     def test_it_do_fab_migrations(self):
         self.migr_mng.collection.insert({'name': '001_test.py'})
