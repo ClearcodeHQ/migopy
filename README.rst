@@ -227,7 +227,7 @@ All::
 Changes log
 --------------
 
-**1.0 (2014-01014)**
+**1.0 (2014-01-14)**
 
 * bug fixes for mongo user authorization
 * bug fixes for working with remotes (logging, commands executing)
