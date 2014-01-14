@@ -20,7 +20,7 @@ from distutils.core import setup
 
 setup(
     name='migopy',
-    version='1.0-beta',
+    version='1.0',
     description='Mongo migrations for Python',
     url='https://github.com/clearcode/migopy',
     license='LGPL',
@@ -33,7 +33,7 @@ setup(
         'mock'
     ],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Plugins',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',

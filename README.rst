@@ -25,7 +25,7 @@ Quick start
 
 At first install migopy:
 
-    pip install --pre migopy
+    pip install migopy
 
 then quickly configure mongo migrations in Your fabfile with basic
 informations
@@ -223,3 +223,15 @@ All::
 
     $ python -m unittest discover
 
+
+Changes log
+--------------
+
+** 1.0 (2014-01014) **
+
+* bug fixes for mongo user authorization
+* bug fixes for working with remotes (logging, commands executing)
+
+** 1.0 beta (2013-12-13)**
+
+* Initial version
