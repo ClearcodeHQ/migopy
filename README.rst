@@ -1,4 +1,4 @@
-Migopy 1.0 beta - Mongo Migrations for Python
+Migopy 1.0 - Mongo Migrations for Python
 =====================================
 
 Migopy is a simple python library which simply allows You to
